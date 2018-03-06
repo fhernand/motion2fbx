@@ -8,6 +8,7 @@ motion2fbx <json input file> <fbx output file> <FBX format>
 where <FBX format> is either 0 for binary or -1 for ASCII format.
 
 Note:
+- VS 2017 was used to build the executable (release executable available in bin\motion2fbx\win32\net2015\release)
 - Currently only the camera motion is considered.
 - A mesh is included to visualize the camera position (for example in FBX Review)
 - Position and rotation animations are assigned to separate marker elements
