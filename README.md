@@ -1,7 +1,7 @@
 # motion2fbx
 Convert recorded VR motion from A-Frame to FBX file format using the FBX SDK
 
-Use the [A-Frame motion capture components](https://github.com/dmarcos/aframe-motion-capture-components) to capture motion. The resulting JSON file can be converted with this project into a FBX file that contains the recorded animation.
+Use the [A-Frame motion capture components](https://github.com/dmarcos/aframe-motion-capture-components) to capture motion in VR. The resulting JSON file can be converted with this project into a FBX file that contains the recorded animation.
 
 Usage: 
 ```
