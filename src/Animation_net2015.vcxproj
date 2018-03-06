@@ -310,8 +310,8 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\Common\Common.cxx" />
-    <ClCompile Include="main.cxx" />
+    <ClCompile Include="..\Common\Common.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Common\Common.h" />
