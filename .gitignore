@@ -1,0 +1,5 @@
+bin/
+obj/
+lib/vs2015/x86/debug/
+.vs/motion2fbx/v15/ipch
+*.suo
