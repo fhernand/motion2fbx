@@ -22,6 +22,11 @@ int main(int argc, char** argv)
 	json j;
 	i >> j;
 
+#ifdef DEBUG
+	std::ofstream o("pretty.json");
+	o << std::setw(4) << j << std::endl;
+#endif
+
     FbxManager* lSdkManager = NULL;
     FbxScene* lScene = NULL;
 
@@ -46,20 +51,37 @@ int main(int argc, char** argv)
 
 bool CreateScene(FbxManager* pSdkManager, FbxScene* pScene, json& j)
 {
+	const double CAMERA_MESH_HEIGHT = 20;
+	const double CAMERA_MESH_SIDE = 10;
+	const double HAND_MESH_HEIGHT = 10;
+	const double HAND_MESH_SIDE = 2;
+
+
     FbxTime lTime;
     FbxAnimCurveKey key;
     FbxAnimCurve* lCurve = NULL;
 
 	// create markers
-	FbxNode* lMarkerPos = CreateMarker(pScene, "PositionAnimation");
-	FbxNode* lMarkerRot = CreateMarker(pScene, "RotationAnimation");
+	FbxNode* lMarkerRoot = CreateMarker(pScene, "Root");
+	FbxNode* lMarkerPosCam = CreateMarker(pScene, "CameraPositionAnimation");
+	FbxNode* lMarkerRotCam = CreateMarker(pScene, "CameraRotationAnimation");
+	FbxNode* lMarkerPosLeft = CreateMarker(pScene, "LeftPositionAnimation");
+	FbxNode* lMarkerRotLeft = CreateMarker(pScene, "LeftRotationAnimation");
+	FbxNode* lMarkerPosRight = CreateMarker(pScene, "RightPositionAnimation");
+	FbxNode* lMarkerRotRight = CreateMarker(pScene, "RightRotationAnimation");
 
-	// set the marker position
-	SetMarkerDefaultPosition(lMarkerPos);
-	SetMarkerDefaultPosition(lMarkerRot);
+	// set the marker positions
+	SetMarkerDefaultPosition(lMarkerPosCam, FbxVector4(0, 0, 0));
+	SetMarkerDefaultPosition(lMarkerRotCam, FbxVector4(0, 0, 0));
+	SetMarkerDefaultPosition(lMarkerPosLeft, FbxVector4(-160, 180, 90));
+	SetMarkerDefaultPosition(lMarkerRotLeft, FbxVector4(0, 0, 0));
+	SetMarkerDefaultPosition(lMarkerPosRight, FbxVector4(325, -180, -90));
+	SetMarkerDefaultPosition(lMarkerRotRight, FbxVector4(0, 0, 0));
 
 	// create a mesh
-	FbxNode* lMesh = CreatePyramidWithMaterials(pScene, "Mesh");
+	FbxNode* lMeshCam = CreatePyramidWithMaterials(pScene, "MeshCamera", CAMERA_MESH_SIDE, CAMERA_MESH_HEIGHT);
+	FbxNode* lMeshLeft = CreatePyramidWithMaterials(pScene, "MeshLeft", HAND_MESH_SIDE, HAND_MESH_HEIGHT);
+	FbxNode* lMeshRight = CreatePyramidWithMaterialsRightHand(pScene, "MeshRight", HAND_MESH_SIDE, HAND_MESH_HEIGHT);
 
 	// create a camera
 	FbxNode* lCamera = CreateCamera(pScene, "Camera");
@@ -78,18 +100,34 @@ bool CreateScene(FbxManager* pSdkManager, FbxScene* pScene, json& j)
 	// set the camera position
 	SetCameraDefaultPosition(lCamera);
 
-	SetMeshDefaultPosition(lMesh, FbxVector4(0, 0, -100));
+	SetMeshDefaultPosition(lMeshCam, FbxVector4(0, 0, -CAMERA_MESH_HEIGHT), FbxVector4(90, 0, 0));
+	SetMeshDefaultPosition(lMeshLeft, FbxVector4(0, 0, 0), FbxVector4(-60, 0, 90));// (-118, 25, 0));
+	SetMeshDefaultPosition(lMeshRight, FbxVector4(0, 0, 0), FbxVector4(-60, 0, 90));// (-118, 25, 0));
 
 	// animate the camera
-	AnimatePosition(lMarkerPos, lAnimLayer, j);
-	AnimateRotation(lMarkerRot, lAnimLayer, j);
+	AnimatePosition(lMarkerPosCam, lAnimLayer, j, std::string("camera"));
+	AnimateRotation(lMarkerRotCam, lAnimLayer, j, std::string("camera"));
+	AnimatePosition(lMarkerPosLeft, lAnimLayer, j, std::string("left"));
+	AnimateRotation(lMarkerRotLeft, lAnimLayer, j, std::string("left"));
+	AnimatePosition(lMarkerPosRight, lAnimLayer, j, std::string("right"));
+	AnimateRotation(lMarkerRotRight, lAnimLayer, j, std::string("right"));
 
 	// build a minimum scene graph
 	FbxNode* lRootNode = pScene->GetRootNode();
-	lRootNode->AddChild(lMarkerPos);
-	lMarkerPos->AddChild(lMarkerRot);
-	lMarkerRot->AddChild(lCamera);
-	lMarkerRot->AddChild(lMesh);
+	lRootNode->AddChild(lMarkerRoot);
+
+	lMarkerRoot->AddChild(lMarkerPosCam);
+	lMarkerPosCam->AddChild(lMarkerRotCam);
+	lMarkerRotCam->AddChild(lCamera);
+	lMarkerRotCam->AddChild(lMeshCam);
+
+	lMarkerRoot->AddChild(lMarkerPosLeft);
+	lMarkerPosLeft->AddChild(lMarkerRotLeft);
+	lMarkerRotLeft->AddChild(lMeshLeft);
+		
+	lMarkerRoot->AddChild(lMarkerPosRight);
+	lMarkerPosRight->AddChild(lMarkerRotRight);
+	lMarkerRotRight->AddChild(lMeshRight);
 
 	// set camera switcher as the default camera
 	pScene->GetGlobalSettings().SetDefaultCamera((char *)lCamera->GetName());
@@ -124,15 +162,15 @@ void SetCameraDefaultPosition(FbxNode* pCamera)
 }
 
 // Compute the camera position.
-void SetMeshDefaultPosition(FbxNode* pMesh, FbxVector4& location)
+void SetMeshDefaultPosition(FbxNode* pMesh, FbxVector4& location, FbxVector4& rotation)
 {
 	pMesh->LclTranslation.Set(location);
-	pMesh->LclRotation.Set(FbxVector4(90,0,0));
+	pMesh->LclRotation.Set(rotation);
 	pMesh->LclScaling.Set(FbxVector4(1.0, 1.0, 1.0));
 }
 
 // Position animation
-void AnimatePosition(FbxNode* pPosition, FbxAnimLayer* pAnimLayer, json& j)
+void AnimatePosition(FbxNode* pPosition, FbxAnimLayer* pAnimLayer, json& j, std::string& nodeName)
 {
 	FbxAnimCurve* lCurve = NULL;
 	FbxTime lTime;
@@ -144,7 +182,7 @@ void AnimatePosition(FbxNode* pPosition, FbxAnimLayer* pAnimLayer, json& j)
 	FbxLongLong lStartTimestamp = 0;
 
 	// iterate the array
-	for (json::iterator it = j["camera"]["poses"].begin(); it != j["camera"]["poses"].end(); ++it) {
+	for (json::iterator it = j[nodeName]["poses"].begin(); it != j[nodeName]["poses"].end(); ++it) {
 		if (lStartTimestamp == 0)
 			lStartTimestamp = (*it)["timestamp"];
 
@@ -192,7 +230,7 @@ void AnimatePosition(FbxNode* pPosition, FbxAnimLayer* pAnimLayer, json& j)
 	}
 }
 
-void AnimateRotation(FbxNode* pRotation, FbxAnimLayer* pAnimLayer, json& j)
+void AnimateRotation(FbxNode* pRotation, FbxAnimLayer* pAnimLayer, json& j, std::string& nodeName)
 {
 	FbxAnimCurve* lCurve = NULL;
 	FbxTime lTime;
@@ -204,7 +242,7 @@ void AnimateRotation(FbxNode* pRotation, FbxAnimLayer* pAnimLayer, json& j)
 	FbxLongLong lStartTimestamp = 0;
 
 	// iterate the array
-	for (json::iterator it = j["camera"]["poses"].begin(); it != j["camera"]["poses"].end(); ++it) {
+	for (json::iterator it = j[nodeName]["poses"].begin(); it != j[nodeName]["poses"].end(); ++it) {
 		if (lStartTimestamp == 0)
 			lStartTimestamp = (*it)["timestamp"];
 
@@ -287,22 +325,130 @@ void CreateMaterials(FbxScene* pScene, FbxMesh* pMesh)
 }
 
 // Create a pyramid with materials.
-FbxNode* CreatePyramidWithMaterials(FbxScene* pScene, char* pName)
+FbxNode* CreatePyramidWithMaterials(FbxScene* pScene, char* pName, const double& side, const double& height)
 {
 	int i, j;
 	FbxMesh* lMesh = FbxMesh::Create(pScene, pName);
 
-	FbxVector4 vertex0(-50, 0, 50);
-	FbxVector4 vertex1(50, 0, 50);
-	FbxVector4 vertex2(50, 0, -50);
-	FbxVector4 vertex3(-50, 0, -50);
-	FbxVector4 vertex4(0, 100, 0);
+	FbxVector4 vertex0(-side, 0, side);
+	FbxVector4 vertex1(side, 0, side);
+	FbxVector4 vertex2(side, 0, -side);
+	FbxVector4 vertex3(-side, 0, -side);
+	FbxVector4 vertex4(0, height, 0);
 
 	FbxVector4 lNormalP0(0, 1, 0);
 	FbxVector4 lNormalP1(0, 0.447, 0.894);
 	FbxVector4 lNormalP2(0.894, 0.447, 0);
 	FbxVector4 lNormalP3(0, 0.447, -0.894);
 	FbxVector4 lNormalP4(-0.894, 0.447, 0);
+
+	// Create control points.
+	lMesh->InitControlPoints(16);
+	FbxVector4* lControlPoints = lMesh->GetControlPoints();
+
+	lControlPoints[0] = vertex0;
+	lControlPoints[1] = vertex1;
+	lControlPoints[2] = vertex2;
+	lControlPoints[3] = vertex3;
+	lControlPoints[4] = vertex0;
+	lControlPoints[5] = vertex1;
+	lControlPoints[6] = vertex4;
+	lControlPoints[7] = vertex1;
+	lControlPoints[8] = vertex2;
+	lControlPoints[9] = vertex4;
+	lControlPoints[10] = vertex2;
+	lControlPoints[11] = vertex3;
+	lControlPoints[12] = vertex4;
+	lControlPoints[13] = vertex3;
+	lControlPoints[14] = vertex0;
+	lControlPoints[15] = vertex4;
+
+	// specify normals per control point.
+
+	FbxGeometryElementNormal* lNormalElement = lMesh->CreateElementNormal();
+	lNormalElement->SetMappingMode(FbxGeometryElement::eByControlPoint);
+	lNormalElement->SetReferenceMode(FbxGeometryElement::eDirect);
+
+	lNormalElement->GetDirectArray().Add(lNormalP0);
+	lNormalElement->GetDirectArray().Add(lNormalP0);
+	lNormalElement->GetDirectArray().Add(lNormalP0);
+	lNormalElement->GetDirectArray().Add(lNormalP0);
+	lNormalElement->GetDirectArray().Add(lNormalP1);
+	lNormalElement->GetDirectArray().Add(lNormalP1);
+	lNormalElement->GetDirectArray().Add(lNormalP1);
+	lNormalElement->GetDirectArray().Add(lNormalP2);
+	lNormalElement->GetDirectArray().Add(lNormalP2);
+	lNormalElement->GetDirectArray().Add(lNormalP2);
+	lNormalElement->GetDirectArray().Add(lNormalP3);
+	lNormalElement->GetDirectArray().Add(lNormalP3);
+	lNormalElement->GetDirectArray().Add(lNormalP3);
+	lNormalElement->GetDirectArray().Add(lNormalP4);
+	lNormalElement->GetDirectArray().Add(lNormalP4);
+	lNormalElement->GetDirectArray().Add(lNormalP4);
+
+	// Array of polygon vertices.
+	int lPolygonVertices[] = { 0, 3, 2, 1,
+		4, 5, 6,
+		7, 8, 9,
+		10, 11, 12,
+		13, 14, 15 };
+
+	// Set material mapping.
+	FbxGeometryElementMaterial* lMaterialElement = lMesh->CreateElementMaterial();
+	lMaterialElement->SetMappingMode(FbxGeometryElement::eByPolygon);
+	lMaterialElement->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
+
+	// Create polygons. Assign material indices.
+
+	// Pyramid base.
+	lMesh->BeginPolygon(0); // Material index.
+
+	for (j = 0; j < 4; j++)
+	{
+		lMesh->AddPolygon(lPolygonVertices[j]); // Control point index.
+	}
+
+	lMesh->EndPolygon();
+
+	// Pyramid sides.
+	for (i = 1; i < 5; i++)
+	{
+		lMesh->BeginPolygon(i); // Material index.
+
+		for (j = 0; j < 3; j++)
+		{
+			lMesh->AddPolygon(lPolygonVertices[4 + 3 * (i - 1) + j]); // Control point index.
+		}
+
+		lMesh->EndPolygon();
+	}
+
+
+	FbxNode* lNode = FbxNode::Create(pScene, pName);
+
+	lNode->SetNodeAttribute(lMesh);
+
+	CreateMaterials(pScene, lMesh);
+
+	return lNode;
+}
+
+FbxNode* CreatePyramidWithMaterialsRightHand(FbxScene* pScene, char* pName, const double& side, const double& height)
+{
+	int i, j;
+	FbxMesh* lMesh = FbxMesh::Create(pScene, pName);
+
+	FbxVector4 vertex0(-side, 0, side);
+	FbxVector4 vertex1(side, 0, side);
+	FbxVector4 vertex2(side, 0, -side);
+	FbxVector4 vertex3(-side, 0, -side);
+	FbxVector4 vertex4(0, -height, 0);
+
+	FbxVector4 lNormalP0(0, -1, 0);
+	FbxVector4 lNormalP1(0, -0.447, 0.894);
+	FbxVector4 lNormalP2(0.894, -0.447, 0);
+	FbxVector4 lNormalP3(0, -0.447, -0.894);
+	FbxVector4 lNormalP4(-0.894, -0.447, 0);
 
 	// Create control points.
 	lMesh->InitControlPoints(16);
@@ -408,10 +554,10 @@ FbxNode* CreateMarker(FbxScene* pScene, char* pName)
 }
 
 // Set marker default position.
-void SetMarkerDefaultPosition(FbxNode* pMarker)
+void SetMarkerDefaultPosition(FbxNode* pMarker, const FbxVector4& rotation)
 {
 	// The marker is positioned above the origin. There is no rotation and no scaling.
 	pMarker->LclTranslation.Set(FbxVector4(0.0, 0.0, 0.0));
-	pMarker->LclRotation.Set(FbxVector4(0.0, 0.0, 0.0));
+	pMarker->LclRotation.Set(rotation);
 	pMarker->LclScaling.Set(FbxVector4(1.0, 1.0, 1.0));
 }

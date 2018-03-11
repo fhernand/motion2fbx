@@ -8,6 +8,9 @@
    this software in either electronic or hard copy form.
 
 ****************************************************************************************/
+
+#define DEBUG
+
 #ifndef _COMMON_H
 #define _COMMON_H
 
@@ -35,13 +38,15 @@ void SetCameraDefaultPosition(
 void AnimatePosition(
 	FbxNode* pPosition,
 	FbxAnimLayer* pAnimLayer,
-    nlohmann::json& j
+    nlohmann::json& j,
+	std::string& nodeName
 );
 
 void AnimateRotation(
 	FbxNode* pPosition,
 	FbxAnimLayer* pAnimLayer,
-	nlohmann::json& j
+	nlohmann::json& j,
+	std::string & nodeName
 );
 
 void CreateMaterials(
@@ -51,12 +56,22 @@ void CreateMaterials(
 
 FbxNode* CreatePyramidWithMaterials(
 	FbxScene* pScene,
-	char* pName
+	char* pName,
+	const double& side, 
+	const double& height
+);
+
+FbxNode* CreatePyramidWithMaterialsRightHand(
+	FbxScene* pScene,
+	char* pName,
+	const double& side,
+	const double& height
 );
 
 void SetMeshDefaultPosition(
 	FbxNode* pMesh,
-	FbxVector4& location
+	FbxVector4& location,
+	FbxVector4& rotation
 );
 
 // Create a marker to use a point of interest for the camera. 
@@ -66,7 +81,8 @@ FbxNode* CreateMarker(
 );
 
 void SetMarkerDefaultPosition(
-	FbxNode* pMarker
+	FbxNode* pMarker,
+	const FbxVector4& rotation
 );
 
 #endif // #ifndef _COMMON_H
