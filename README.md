@@ -14,7 +14,7 @@ Note:
 - A mesh is included to visualize the camera position (for example in FBX Review)
 - Position and rotation animations are assigned to separate marker elements
 - The following FBX SDK version is used: Autodesk FBX SDK version 2018.1.1 Release (246450)
-- Uses the [JSON library from nlohmann](https://github.com/nlohmann/json
+- Uses the [JSON library from nlohmann](https://github.com/nlohmann/json)
 
 *******************************************************************************************************************************************
 
